@@ -1,0 +1,88 @@
+# Прод-стек для VPS. Запускается GitHub Actions и вручную:
+#   docker compose -f docker-compose.server.yml up -d --build
+#
+# Порты публикуются только на 127.0.0.1 — их читает общий входной nginx из /root/edge.
+# Снаружи (и для соседних проектов) эти порты закрыты. Postgres не публикуется вовсе.
+name: workout-tracker
+
+services:
+  tracker_db:
+    image: postgres:16-alpine
+    container_name: tracker_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tracker}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tracker}
+      POSTGRES_DB: ${POSTGRES_DB:-tracker}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tracker} -d ${POSTGRES_DB:-tracker}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - tracker
+
+  tracker_backend:
+    build: ./backend
+    container_name: tracker_backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tracker}:${POSTGRES_PASSWORD:-tracker}@tracker_db:5432/${POSTGRES_DB:-tracker}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+      STORAGE_URL: http://tracker_storage:8010
+    depends_on:
+      tracker_db:
+        condition: service_healthy
+    command: >
+      sh -c "alembic upgrade head &&
+             python -m app.seed &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2 --proxy-headers"
+    # наружу не светим: доступ только с самого хоста (его читает edge-nginx в /root/edge)
+    ports:
+      - "127.0.0.1:8081:8000"
+    networks:
+      - tracker
+
+  tracker_storage:
+    build: ./storage
+    container_name: tracker_storage
+    restart: unless-stopped
+    environment:
+      STORAGE_DIR: /data/uploads
+      PUBLIC_BASE_URL: ${STORAGE_PUBLIC_URL:-}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://workout-tracker.abm-order.ru}
+    volumes:
+      - uploads:/data/uploads
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8010 --proxy-headers
+    ports:
+      - "127.0.0.1:8082:8010"
+    networks:
+      - tracker
+
+  tracker_web:
+    build: ./frontend
+    container_name: tracker_web
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: http://tracker_backend:8000
+      STORAGE_URL: http://tracker_storage:8010
+      PORT: "80"
+    depends_on:
+      - tracker_backend
+      - tracker_storage
+    ports:
+      - "127.0.0.1:8080:80"
+    networks:
+      - tracker
+
+networks:
+  tracker:
+
+volumes:
+  pgdata:
+  uploads:

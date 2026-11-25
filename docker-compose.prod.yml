@@ -1,0 +1,16 @@
+# Прод-сборка фронтенда рядом с dev-сервером (порт 8090).
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build web
+# Сайт и API на одном origin: /api → backend, /files → storage.
+services:
+  web:
+    build: ./frontend
+    image: tigran_tracker-web:prod
+    environment:
+      BACKEND_URL: http://backend:8000
+      STORAGE_URL: http://storage:8010
+      PORT: "80"
+    ports:
+      - "8081:80"
+    depends_on:
+      - backend
+      - storage
