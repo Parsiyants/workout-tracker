@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
-from app.deps import AdminUser, CurrentUser, DbSession
+from app.deps import CurrentUser, DbSession
 from app.models import Category
 from app.schemas import CategoryCreate, CategoryRead, CategoryUpdate
 
@@ -15,7 +15,7 @@ async def list_categories(db: DbSession, _: CurrentUser) -> list[Category]:
 
 
 @router.post("", response_model=CategoryRead, status_code=status.HTTP_201_CREATED)
-async def create_category(payload: CategoryCreate, db: DbSession, _: AdminUser) -> Category:
+async def create_category(payload: CategoryCreate, db: DbSession, _: CurrentUser) -> Category:
     if payload.parent_id is not None and await db.get(Category, payload.parent_id) is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unknown parent category")
 
@@ -28,7 +28,7 @@ async def create_category(payload: CategoryCreate, db: DbSession, _: AdminUser) 
 
 @router.patch("/{category_id}", response_model=CategoryRead)
 async def update_category(
-    category_id: int, payload: CategoryUpdate, db: DbSession, _: AdminUser
+    category_id: int, payload: CategoryUpdate, db: DbSession, _: CurrentUser
 ) -> Category:
     category = await db.get(Category, category_id)
     if category is None:

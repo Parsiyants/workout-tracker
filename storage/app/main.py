@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from app.auth import require_admin
+from app.auth import require_user
 from app.config import settings
 
 FOLDER_RE = re.compile(r"^[a-z0-9_-]{1,40}$")
@@ -63,7 +63,7 @@ async def health() -> dict[str, str]:
 async def upload_files(
     folder: str = Query(..., description="Подпапка, например exercises"),
     files: list[UploadFile] = File(...),
-    _: None = Depends(require_admin),
+    _: None = Depends(require_user),
 ) -> UploadResult:
     if not FOLDER_RE.match(folder):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid folder")
@@ -115,7 +115,7 @@ async def read_file(path: str) -> FileResponse:
 
 
 @app.delete("/files")
-async def remove_files(payload: RemoveRequest, _: None = Depends(require_admin)) -> dict[str, list[str]]:
+async def remove_files(payload: RemoveRequest, _: None = Depends(require_user)) -> dict[str, list[str]]:
     removed: list[str] = []
     for relative in payload.paths:
         file_path = resolve_path(relative)
@@ -127,7 +127,7 @@ async def remove_files(payload: RemoveRequest, _: None = Depends(require_admin))
 
 @app.post("/files/prune")
 async def prune_files(
-    payload: PruneRequest, _: None = Depends(require_admin)
+    payload: PruneRequest, _: None = Depends(require_user)
 ) -> dict[str, list[str]]:
     """Удаляет файлы папки, на которые больше нет ссылок (keep)."""
     if not FOLDER_RE.match(payload.folder):

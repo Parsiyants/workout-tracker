@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, select
 
-from app.deps import AdminUser, CurrentUser, DbSession
+from app.deps import CurrentUser, DbSession
 from app.models import Category, Exercise, WorkoutSession, WorkoutTemplate
 from app.schemas import ExerciseCreate, ExerciseRead, ExerciseUpdate
 
@@ -67,7 +67,7 @@ async def update_exercise(
 
 
 @router.delete("/{exercise_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_exercise(exercise_id: int, db: DbSession, _: AdminUser) -> None:
+async def delete_exercise(exercise_id: int, db: DbSession, _: CurrentUser) -> None:
     exercise = await db.get(Exercise, exercise_id)
     if exercise is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Exercise not found")

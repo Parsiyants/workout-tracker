@@ -1,5 +1,5 @@
 /* Service worker: оболочка приложения офлайн, медиа из кэша, API — всегда сеть. */
-const CACHE = "tt-shell-v1";
+const CACHE = "tt-shell-v2";
 const MEDIA_CACHE = "tt-media-v1";
 const MEDIA_LIMIT = 120;
 const SHELL = ["/"];
@@ -38,10 +38,17 @@ async function cacheFirst(request, cacheName, limit) {
   const cache = await caches.open(cacheName);
   const cached = await cache.match(request);
   if (cached) return cached;
+  // ответы на Range-запросы приходят как 206 — Cache API их не принимает
+  if (request.headers.has("range")) return fetch(request);
   const response = await fetch(request);
-  if (response.ok || response.type === "opaque") {
-    await cache.put(request, response.clone());
-    if (limit) trimCache(cacheName, limit);
+  const cacheable = response.status === 200 || response.type === "opaque";
+  if (cacheable) {
+    try {
+      await cache.put(request, response.clone());
+      if (limit) trimCache(cacheName, limit);
+    } catch {
+      // не смогли закэшировать — отдаём ответ как есть
+    }
   }
   return response;
 }
