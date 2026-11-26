@@ -89,7 +89,8 @@ const server = createServer((req, res) => {
     proxy(req, res, BACKEND_URL);
     return;
   }
-  if (pathname.startsWith("/files/")) {
+  // /files — и загрузка (POST /files), и отдача (GET /files/...)
+  if (pathname === "/files" || pathname.startsWith("/files/")) {
     // имена файлов — uuid, содержимое неизменяемо: браузер кэширует их надолго
     proxy(req, res, STORAGE_URL, {
       "cache-control": "public, max-age=31536000, immutable",
