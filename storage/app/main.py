@@ -107,7 +107,11 @@ async def read_file(path: str) -> FileResponse:
     file_path = resolve_path(path)
     if not file_path.is_file():
         raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
-    return FileResponse(file_path)
+    # Имена файлов — uuid, содержимое неизменяемо: кэшируем надолго
+    return FileResponse(
+        file_path,
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+    )
 
 
 @app.delete("/files")

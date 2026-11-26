@@ -3,6 +3,8 @@
 Идемпотентно: упражнения находятся по названию, шаблоны — по названию у админа.
 """
 
+import re
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -303,14 +305,16 @@ TEMPLATES: list[tuple[str, list[tuple[str, int, int | None, int | None]]]] = [
     ),
 ]
 
-LOCAL_STORAGE_PREFIXES = ("http://localhost:8010", "http://127.0.0.1:8010")
-
 
 def _relative(url: str) -> str:
-    """Абсолютные ссылки на локальный storage → относительные (работает и с телефона)."""
-    for prefix in LOCAL_STORAGE_PREFIXES:
-        if url.startswith(prefix):
-            return url[len(prefix) :]
+    """Абсолютные ссылки на storage → относительные (работает и с телефона).
+
+    Срезаем любой scheme://host[:port], оставляя только путь (/files/...).
+    """
+    match = re.match(r"^https?://[^/]+", url)
+    if match:
+        rest = url[match.end() :]
+        return rest if rest.startswith("/") else f"/{rest}"
     return url
 
 

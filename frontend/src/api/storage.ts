@@ -2,7 +2,9 @@ import axios from "axios";
 
 import { errorMessage, getToken } from "./client";
 
-const STORAGE_URL = import.meta.env.VITE_STORAGE_URL ?? "http://localhost:8010";
+// Пусто = запросы идут на тот же origin (/files), их проксирует tracker_web.
+// Абсолютный адрес нужен только если файлы вынесены на отдельный домен.
+const STORAGE_URL = import.meta.env.VITE_STORAGE_URL ?? "";
 
 export type StoredFile = {
   name: string;

@@ -37,7 +37,7 @@ function cacheHeader(pathname) {
   return "no-cache";
 }
 
-function proxy(req, res, base) {
+function proxy(req, res, base, extraHeaders = {}) {
   const target = new URL(req.url, base);
   const headers = { ...req.headers, host: target.host };
   delete headers["accept-encoding"];
@@ -45,7 +45,7 @@ function proxy(req, res, base) {
   const upstream = httpRequest(
     { hostname: target.hostname, port: target.port, path: target.pathname + target.search, method: req.method, headers },
     (upstreamRes) => {
-      res.writeHead(upstreamRes.statusCode || 502, upstreamRes.headers);
+      res.writeHead(upstreamRes.statusCode || 502, { ...upstreamRes.headers, ...extraHeaders });
       upstreamRes.pipe(res);
     },
   );
@@ -90,7 +90,10 @@ const server = createServer((req, res) => {
     return;
   }
   if (pathname.startsWith("/files/")) {
-    proxy(req, res, STORAGE_URL);
+    // имена файлов — uuid, содержимое неизменяемо: браузер кэширует их надолго
+    proxy(req, res, STORAGE_URL, {
+      "cache-control": "public, max-age=31536000, immutable",
+    });
     return;
   }
   if (req.method !== "GET" && req.method !== "HEAD") {
