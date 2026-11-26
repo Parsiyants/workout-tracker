@@ -17,7 +17,9 @@ async def list_exercises(
 ) -> list[Exercise]:
     stmt = select(Exercise).order_by(Exercise.name)
     if category_id is not None:
-        stmt = stmt.where(Exercise.category_id == category_id)
+        # выбрана родительская категория — показываем и упражнения её подкатегорий
+        child_ids = list(await db.scalars(select(Category.id).where(Category.parent_id == category_id)))
+        stmt = stmt.where(Exercise.category_id.in_([category_id, *child_ids]))
     if search:
         stmt = stmt.where(Exercise.name.ilike(f"%{search.strip()}%"))
     result = await db.scalars(stmt)
